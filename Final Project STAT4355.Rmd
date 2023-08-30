@@ -1,0 +1,169 @@
+---
+title: "STAT4355: Alcohol, Wealth, and Happiness"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+author:
+  - Ysabella Salas
+  - Teddy West
+  - Jake Lee
+  - Whitney Humecky
+---
+
+
+```{r}
+#Packages
+library(ggplot2)
+library(tidyverse)
+library(ggthemes)
+library(reshape2)
+library(car)
+
+#Read CSV file
+df <- read.csv("HAC.csv")
+df <- as.data.frame(df)
+df
+
+#Data Cleaning
+
+#Fixing GDP
+  #new column by row name order (1 to 122)
+  #Macedonia(81) == North Macedonia
+
+GDP_PerCapita2 <- c(67803.0, 93457.4, 68383.8, 89202.8, 53982.6, 
+                   52051.4, 58061.0, 48801.7, 59934.1, 60239.0,
+                   51430.1, 53267.9, 69287.5, 12508.6, 50801.8,
+                   7518.8, 51767.8, 99152.1, 135682.8, 9926.4,
+                   72794.0, 47334.4, 16502.8, 14516.5, 10729.2,
+                   26378.5, 36284.6, 17020.6, 33257.4, 6131.2,
+                   43518.5, 7233.4, 61276.0, 30115.7, 5025.6,
+                   4836.3, 22232.3, 15243.1, 16055.6, 21087.8,
+                   4408.5, 2090.8, 1983.1, 35551.3, 5934.9, 
+                   4420.5, 39285.2, 10041.5, 5314.5, 12172.8,
+                   17840.9, 34757.7, 3414.9, 23433.4, 7303.7, 
+                   29200.8, 6692.2, 7612.0, 8812.1, 20642.2,
+                   30798.5, 5400.1, 14861.9, 27280.7, 4586.7, 
+                   17398.8, 9586.6, 4405.8, 5384.0, 3548.8,
+                   12556.3, 1276.2, 9215.0, 6916.4, 9367.0, 
+                   8603.8, 3496.8, 18772.7, 2670.4, 24262.2,
+                   6720.9, 3694.0, 3924.3, 20276.5, 4534.9,
+                   2085.0, 2831.0, 1120.6, 6494.4, 515.9,
+                   4729.3, 1661.7, 6994.2, 3876.4, 4670.0,
+                   2006.8, 4835.6, 2445.3, 584.1, 5042.4,
+                   2213.9, 1606.5, 11635.0, 1737.2, 642.7,
+                   8017.0, 917.9, 1814.7, 7347.6, 1494.7,
+                   2578.8, 1591.0, 2137.9, 594.9, 696.4,
+                   918.2, 514.9, 1135.5, 673.1, 1428.4,
+                   992.3, 1265.6)
+
+df$GDP_PerCapita <- GDP_PerCapita2
+
+#Sum of all alcohol consumption
+Total_Consumption <- df$Beer_PerCapita + df$Spirit_PerCapita + df$Wine_PerCapita
+
+df$Total_Consumption <- Total_Consumption
+
+#Fix unit scale
+df$HDI <- (df$HDI / 1000)
+
+
+#GDP Transformation
+GDP_log <- log(df$GDP_PerCapita)
+df$GDP_log <- GDP_log
+
+df
+
+#Data Anlysis (Linear Regression)
+
+#fitted line
+fitH <- lm(HappinessScore ~ GDP_log, data = df)
+summary(fitH)
+ggplot(df) +
+  geom_point(aes(GDP_log, HappinessScore)) +
+  geom_smooth(aes(GDP_log, HappinessScore), method=lm, se=FALSE)
+
+
+#########Exploratory Analysis, ANOVA, and VIF################
+
+#Sum of all alcohol consumption
+Total_Consumption <- df$Beer_PerCapita + df$Spirit_PerCapita + df$Wine_PerCapita
+
+df$Total_Consumption <- Total_Consumption
+
+#HappinessScore (y) vs All other continuous variables
+df2 <- melt(df[,4:9], id.vars = "HappinessScore")
+
+ggplot(df2) +
+  geom_jitter(aes(value, HappinessScore, colour=variable),) +
+  geom_smooth(aes(value, HappinessScore, colour=variable), method=lm, se=FALSE) +
+  facet_wrap(~variable, scales="free_x")
+
+# Coefficient Summary
+fit1 <- lm(HappinessScore ~ HDI + GDP_PerCapita + Beer_PerCapita + Spirit_PerCapita
+          + Wine_PerCapita, data = df)
+summary(fit1)
+vif(fit1)
+anova(fit1)
+
+# Beer + Wine + Spirits
+fitA <- lm(HappinessScore ~ Beer_PerCapita + Spirit_PerCapita
+          + Wine_PerCapita, data = df)
+summary(fitA)
+vif(fitA)
+anova(fitA)
+
+# Sum of all Alcohol types
+fitT <- lm(HappinessScore ~ Total_Consumption, data = df)
+summary(fitT)
+anova(fitT)
+
+# HDI
+fitH <- lm(HappinessScore ~ HDI, data = df)
+summary(fitH)
+anova(fitH)
+
+#Income Types
+#High Income (~$47,886.8)  >$50K
+#Upper-Middle Income (~$10,835.5) >$11k
+#Middle Income (~$6,102.0)  >$6K
+#Lower-Middle Income (~$2,581.9)  >$2k
+#Low Income (~$749.8)  <$2k
+
+#Revised Happiness vs Everything
+
+df3 <- melt(df[,4:11], id.vars="HappinessScore")
+
+ggplot(df3) +
+  geom_jitter(aes(value, HappinessScore, colour=variable),) +
+  geom_smooth(aes(value, HappinessScore, colour=variable), method=lm, se=FALSE) +
+  facet_wrap(~variable, scales="free_x")
+
+fit2 <- lm(HappinessScore ~ HDI 
+           + Total_Consumption, data = df)
+summary(fit2)
+vif(fit2)
+anova(fit2)
+
+#Scatter plot: HDI vs Happiness Score by Region
+
+hdi_scatter <- ggplot(df, aes(x = HDI, y = HappinessScore, color = Region)) + 
+  geom_point() + 
+  geom_smooth(method = lm) +
+  labs(title = "Human Development Index vs Happiness Score", x = "Human Development Index") +
+  facet_wrap(~Region)
+
+#Scatter plot: GDP Per Capita vs Happiness Score by Region
+
+gdp_scatter <- ggplot(df, aes(x = GDP_PerCapita2, y = HappinessScore, color = Region)) + 
+  geom_point() +
+  geom_smooth(method = lm) +
+  labs(title = "GDP Per Capita vs Happiness Score", x = "GDP Per Capita ($USD)") +
+  facet_wrap(~Region)
+
+hdi_scatter + theme_dark() + theme(plot.title = element_text(face = "bold"))
+gdp_scatter + theme_dark() + theme(plot.title = element_text(face = "bold"))
+
+```
+
+
